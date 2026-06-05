@@ -5,6 +5,8 @@ export function OrderFix() {
   const [availability, setAvailability] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [shippingAddress, setShippingAddress] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [loadingAvailability, setLoadingAvailability] = useState(true);
 
   const [cancelled, setCancelled] = useState(
     Boolean(shopify.order?.value?.cancelledAt) ||
@@ -40,6 +42,8 @@ export function OrderFix() {
         setShippingAddress(data.shippingAddress);
       } catch (error) {
         console.error('OrderFix availability error', error);
+      } finally {
+        setLoadingAvailability(false);
       }
     }
 
@@ -59,31 +63,71 @@ export function OrderFix() {
     !expired &&
     !cancelled;
 
+  const addressWarnings = getAddressWarnings(shippingAddress);
+
+  if (loadingAvailability) {
+    return (
+        <s-stack direction="block" gap="base">
+          <s-progress accessibilityLabel="Checking order edit availability..."></s-progress>
+        </s-stack>
+    );
+  }
+
   if (availability && !showEditor) {
     //return null;
   }
 
   return (
     <s-section>
-      <s-stack gap="base">
+      <s-stack gap="base" padding="small none">
         <s-stack direction="inline" justifyContent="space-between">
           <s-text type="strong">Make changes to your order</s-text>
           <s-text>Time left to edit: {timeLeft}</s-text>
         </s-stack>
 
+        {successMessage && (
+          <s-banner tone="success">
+            {successMessage}
+          </s-banner>
+        )}
+
+        {addressWarnings.length > 0 && (
+          <s-banner tone="warning">
+            <s-stack gap="small">
+              <s-text type="strong">
+                Please review your shipping address
+              </s-text>
+
+              {addressWarnings.map((warning) => (
+                <s-text key={warning}>
+                  • {warning}
+                </s-text>
+              ))}
+            </s-stack>
+          </s-banner>
+        )}
+
         <ActionRow
-          icon="delivery"
+          icon="location"
           title="Edit shipping address"
           open={openSection === 'shipping'}
-          onClick={() =>
-            setOpenSection(openSection === 'shipping' ? null : 'shipping')
-          }
+          onClick={() => {
+            setSuccessMessage('');
+
+            setOpenSection(
+              openSection === 'shipping' ? null : 'shipping'
+            );
+          }}
         />
 
         {openSection === 'shipping' && shippingAddress && (
           <ShippingForm
             shippingAddress={shippingAddress}
             setShippingAddress={setShippingAddress}
+            onSuccess={() => {
+              setSuccessMessage('Shipping address updated successfully.');
+              setOpenSection(null); // collapse section
+            }}
           />
         )}
         <s-divider />
@@ -97,7 +141,14 @@ export function OrderFix() {
           }
         />
 
-        {openSection === 'cancel' && <CancelForm />}
+        {openSection === 'cancel' && (
+          <CancelForm
+            cancelled={cancelled}
+            cancelling={cancelling}
+            setCancelled={setCancelled}
+            setCancelling={setCancelling}
+          />
+        )}
       </s-stack>
     </s-section>
   );
@@ -170,7 +221,7 @@ function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
   );
 }
 
-function ShippingForm({shippingAddress, setShippingAddress}) {
+function ShippingForm({shippingAddress, setShippingAddress, onSuccess}) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     firstName: shippingAddress?.firstName ?? '',
@@ -181,15 +232,58 @@ function ShippingForm({shippingAddress, setShippingAddress}) {
     city: shippingAddress?.city ?? '',
     zip: shippingAddress?.zip ?? '',
   });
+  const [errors, setErrors] = useState({});
 
   function updateField(field, value) {
     setForm((current) => ({
       ...current,
       [field]: value,
     }));
+
+    setErrors((current) => ({
+      ...current,
+      [field]: undefined,
+    }));
   }
 
   async function saveAddress() {
+
+    const validationErrors = {};
+
+    if (!form.firstName.trim()) {
+      validationErrors.firstName = 'Enter a first name';
+    }
+
+    if (!form.lastName.trim()) {
+      validationErrors.lastName = 'Enter a last name';
+    }
+
+    if (!form.address1.trim()) {
+      validationErrors.address1 = 'Enter an address';
+    }
+
+    if (!form.city.trim()) {
+      validationErrors.city = 'Enter a city';
+    }
+
+    if (!form.zip.trim()) {
+      validationErrors.zip = 'Enter a postal code';
+    }
+
+    if (
+      shippingAddress?.countryCodeV2 === 'US' &&
+      form.zip.trim() &&
+      !/^\d{5}(-\d{4})?$/.test(form.zip.trim())
+    ) {
+      validationErrors.zip = 'Enter a valid ZIP code';
+    }
+
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
     setSaving(true);
 
     const APP_URL = process.env.APP_URL;
@@ -219,6 +313,7 @@ function ShippingForm({shippingAddress, setShippingAddress}) {
     });
 
     shopify.toast.show('Shipping address updated');
+    onSuccess?.();
     setSaving(false);
   }
 
@@ -231,17 +326,22 @@ function ShippingForm({shippingAddress, setShippingAddress}) {
         disabled
       />
 
-      <s-text-field
-        label="First name"
-        value={form.firstName}
-        onInput={(event) => updateField('firstName', event.target.value)}
-      />
+      <s-grid gridTemplateColumns="1fr 1fr" gap="base" alignItems="start">
+        <s-text-field
+          label="First name"
+          value={form.firstName}
+          error={errors.firstName}
+          onInput={(event) => updateField('firstName', event.target.value)}
+          required
+        />
 
-      <s-text-field
-        label="Last name"
-        value={form.lastName}
-        onInput={(event) => updateField('lastName', event.target.value)}
-      />
+        <s-text-field
+          label="Last name"
+          value={form.lastName}
+          error={errors.lastName}
+          onInput={(event) => updateField('lastName', event.target.value)}
+        />
+      </s-grid>
 
       <s-text-field
         label="Phone"
@@ -252,6 +352,7 @@ function ShippingForm({shippingAddress, setShippingAddress}) {
       <s-text-field
         label="Address"
         value={form.address1}
+        error={errors.address1}
         onInput={(event) => updateField('address1', event.target.value)}
       />
 
@@ -264,23 +365,30 @@ function ShippingForm({shippingAddress, setShippingAddress}) {
       <s-text-field
         label="City"
         value={form.city}
+        error={errors.city}
         onInput={(event) => updateField('city', event.target.value)}
       />
 
-      <s-text-field
-        label="Postal code"
-        value={form.zip}
-        onInput={(event) => updateField('zip', event.target.value)}
-      />
+      <s-grid gridTemplateColumns="1fr 1fr" gap="base">
+        <s-text-field
+          label="Postal code"
+          value={form.zip}
+          error={errors.zip}
+          onInput={(event) => updateField('zip', event.target.value)}
+        />
 
-      <s-text-field
-        label="State/Province"
-        value={shippingAddress?.provinceCode ?? shippingAddress?.province ?? ''}
-        disabled
-      />
+        <s-text-field
+          label="State/Province"
+          value={shippingAddress?.provinceCode ?? shippingAddress?.province ?? ''}
+          disabled
+        />
+      </s-grid>
+
+      <s-text color="subdued">To change state or country, please contact support — those changes affect tax and shipping and need our help.</s-text>
 
       <s-button
         inlineSize="fill"
+        variant="primary"
         disabled={saving}
         onClick={saveAddress}
       >
@@ -297,6 +405,31 @@ function encodeOrderId(orderId) {
     .replaceAll('=', '');
 }
 
+function getAddressWarnings(address) {
+  const warnings = [];
+
+  const street = address?.address1?.trim() || '';
+  const zip = address?.zip?.trim() || '';
+  const country = address?.countryCodeV2;
+
+  if (country === 'US') {
+    const streetRegex =
+      /^(?:\d+\s+[a-zA-Z0-9\s.,#-]+|(?:p\.?\s*o\.?\s*|post\s+office\s+)box\s+\d+[a-zA-Z0-9\s.,#-]*)$/i;
+
+    const zipRegex = /^\d{5}(-\d{4})?$/;
+
+    if (!streetRegex.test(street)) {
+      warnings.push('Your street address looks like it may be missing a number.');
+    }
+
+    if (!zipRegex.test(zip)) {
+      warnings.push('Your ZIP code appears to be invalid.');
+    }
+  }
+
+  return warnings;
+}
+
 function formatTimeLeft(ms) {
   if (ms <= 0) return "00:00";
 
@@ -310,10 +443,12 @@ function formatTimeLeft(ms) {
 function ActionRow({icon, title, open, onClick}) {
   return (
     <s-clickable onClick={onClick}>
-      <s-grid gridTemplateColumns="auto 1fr auto auto" gap="base" alignItems="center">
+      <s-grid gridTemplateColumns="auto 1fr auto" gap="small" alignItems="center">
         <s-icon type={icon} />
         <s-text type="strong">{title}</s-text>
+        {/*
         <s-text>Edit</s-text>
+        */}
         <s-icon type={open ? 'chevron-up' : 'chevron-down'} />
       </s-grid>
     </s-clickable>

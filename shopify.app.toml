@@ -25,6 +25,6 @@ automatically_update_urls_on_dev = true
 include_config_on_deploy = true
 
 [app_proxy]
-url = "https://institutes-window-does-stores.trycloudflare.com/proxy/orderfix"
+url = "https://festival-leg-sculpture-stick.trycloudflare.com/proxy/orderfix"
 subpath = "orderfix"
 prefix = "apps"

@@ -21,6 +21,33 @@ export async function action({request}) {
     const shop = body.shop;
     const address = body.address ?? body;
 
+    const requiredFields = [
+      ['firstName', 'First name is required'],
+      ['lastName', 'Last name is required'],
+      ['address1', 'Address is required'],
+      ['city', 'City is required'],
+      ['zip', 'Postal code is required'],
+    ];
+
+    for (const [field, message] of requiredFields) {
+      if (!String(address[field] ?? '').trim()) {
+        return data(
+          {ok: false, error: message},
+          {status: 400, headers: corsHeaders},
+        );
+      }
+    }
+
+    const cleanAddress = {
+      firstName: String(address.firstName).trim(),
+      lastName: String(address.lastName).trim(),
+      phone: String(address.phone ?? '').trim(),
+      address1: String(address.address1).trim(),
+      address2: String(address.address2 ?? '').trim(),
+      city: String(address.city).trim(),
+      zip: String(address.zip).trim(),
+    };
+
     if (!shop) {
       return data({ok: false, error: "Missing shop"}, {status: 400, headers: corsHeaders});
     }
@@ -46,15 +73,7 @@ export async function action({request}) {
         variables: {
           input: {
             id: body.orderId,
-            shippingAddress: {
-              firstName: address.firstName,
-              lastName: address.lastName,
-              phone: address.phone,
-              address1: address.address1,
-              address2: address.address2,
-              city: address.city,
-              zip: address.zip,
-            },
+            shippingAddress: cleanAddress,
           },
         },
       },
