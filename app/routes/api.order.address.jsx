@@ -1,5 +1,6 @@
 import {data} from "react-router";
 import {unauthenticated} from "../shopify.server";
+import prisma from "../db.server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,7 +82,27 @@ export async function action({request}) {
 
     const result = await response.json();
 
-    return data(result, {headers: corsHeaders});
+    const errors = result?.data?.orderUpdate?.userErrors ?? [];
+
+    if (errors.length > 0) {
+      return data(
+        result,
+        {status: 400, headers: corsHeaders}
+      );
+    }
+
+    await prisma.orderFixEvent.create({
+      data: {
+        shop,
+        orderId: body.orderId,
+        type: "ADDRESS_EDITED",
+      },
+    });
+
+    return data(
+      result, 
+      {headers: corsHeaders}
+    );
   } catch (error) {
     console.error("order address error", error);
 

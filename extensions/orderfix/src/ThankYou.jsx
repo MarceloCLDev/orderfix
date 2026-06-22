@@ -1,7 +1,7 @@
 import '@shopify/ui-extensions/preact';
 import {render} from 'preact';
-import {OrderFix} from './OrderFix.js';
+import {OrderFixThankYou} from './OrderFix.js';
 
 export default async () => {
-  render(<OrderFix />, document.body);
+  render(<OrderFixThankYou />, document.body);
 };

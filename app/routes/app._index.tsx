@@ -1,358 +1,263 @@
-import { useEffect } from "react";
+import {useLoaderData, useNavigate} from "react-router";
 import type {
-  ActionFunctionArgs,
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import prisma from "../db.server";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
 
-  return null;
-};
+  const url = new URL(request.url);
+  const range = Number(url.searchParams.get("range") || 7);
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-            demoInfo: metafield(namespace: "$app", key: "demo_info") {
-              jsonValue
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-          metafields: [
-            {
-              namespace: "$app",
-              key: "demo_info",
-              value: "Created by React Router Template",
-            },
-          ],
-        },
+  const allowedRanges = [7, 30, 60, 90, 365];
+  const days = allowedRanges.includes(range) ? range : 7;
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - (days - 1));
+  startDate.setHours(0, 0, 0, 0);
+
+  const events = await prisma.orderFixEvent.findMany({
+    where: {
+      shop,
+      createdAt: {
+        gte: startDate,
       },
     },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
+    select: {
+      type: true,
+      createdAt: true,
     },
-  );
-
-  const variantResponseJson = await variantResponse.json();
-
-  const metaobjectResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpsertMetaobject($handle: MetaobjectHandleInput!, $metaobject: MetaobjectUpsertInput!) {
-      metaobjectUpsert(handle: $handle, metaobject: $metaobject) {
-        metaobject {
-          id
-          handle
-          title: field(key: "title") {
-            jsonValue
-          }
-          description: field(key: "description") {
-            jsonValue
-          }
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      variables: {
-        handle: {
-          type: "$app:example",
-          handle: "demo-entry",
-        },
-        metaobject: {
-          fields: [
-            { key: "title", value: "Demo Entry" },
-            {
-              key: "description",
-              value:
-                "This metaobject was created by the Shopify app template to demonstrate the metaobject API.",
-            },
-          ],
-        },
-      },
+    orderBy: {
+      createdAt: "asc",
     },
+  });
+
+  const chartMap = new Map();
+
+  for (let index = 0; index < days; index++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+
+    const key = date.toISOString().slice(0, 10);
+
+    chartMap.set(key, {
+      date: key,
+      addressEdits: 0,
+      cancellations: 0,
+    });
+  }
+
+  for (const event of events) {
+    const key = event.createdAt.toISOString().slice(0, 10);
+    const current = chartMap.get(key);
+
+    if (!current) continue;
+
+    if (event.type === "ADDRESS_EDITED") {
+      current.addressEdits += 1;
+    }
+
+    if (event.type === "ORDER_CANCELLED") {
+      current.cancellations += 1;
+    }
+  }
+
+  const chartData = Array.from(chartMap.values());
+
+  const addressEdits = chartData.reduce(
+    (total, day) => total + day.addressEdits,
+    0
   );
 
-  const metaobjectResponseJson = await metaobjectResponse.json();
+  const cancellations = chartData.reduce(
+    (total, day) => total + day.cancellations,
+    0
+  );
 
   return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-    metaobject:
-      metaobjectResponseJson!.data!.metaobjectUpsert!.metaobject,
+    stats: {
+      addressEdits,
+      cancellations,
+    },
+    chartData,
+    days,
   };
 };
 
 export default function Index() {
-  const fetcher = useFetcher<typeof action>();
+  const {stats, chartData, days} = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  const xAxisInterval =
+    days <= 7
+      ? 1
+      : days <= 30
+      ? 5
+      : days <= 60
+      ? 7
+      : days <= 90
+      ? 10
+      : 30;
 
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
+    <s-page heading="OrderFix">
+      <s-section>
 
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references. Includes a product{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data/metafields"
-            target="_blank"
-          >
-            metafield
-          </s-link>{" "}
-          and{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data/metaobjects"
-            target="_blank"
-          >
-            metaobject
-          </s-link>
-          .
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
+        <s-stack direction="inline" justifyContent="space-between" alignItems="center" paddingBlock="none large">
+          <s-heading>Analytics</s-heading>
+
+          <div style={{ width: "180px" }}>
+            <s-select
+              label=""
+              value={String(days)}
+              onChange={(event) => {
+                navigate(`?range=${event.target.value}`);
               }}
-              target="_blank"
-              variant="tertiary"
             >
-              Edit product
-            </s-button>
-          )}
+              <s-option value="7">Last 7 days</s-option>
+              <s-option value="30">Last 30 days</s-option>
+              <s-option value="60">Last 60 days</s-option>
+              <s-option value="90">Last 90 days</s-option>
+              <s-option value="365">Last 365 days</s-option>
+            </s-select>
+          </div>
         </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
-            <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre
-                  style={{
-                    margin: 0,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
 
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre
-                  style={{
-                    margin: 0,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
+        <s-stack padding="large-100" background="subdued" borderRadius="large">
+        <s-grid
+          gridTemplateColumns="1fr 1fr"
+          gap="large"
+        >
+          <s-box
+            padding="large"
+            border="base"
+            borderRadius="large"
+            background="base"
+          >
+            <s-stack gap="tight">
+              <s-stack direction="inline" gap="small">
+                <s-text appearance="subdued">
+                  Orders Cancelled
+                </s-text>
+                <s-badge tone="success">Active</s-badge>
+              </s-stack>
 
-              <s-heading>metaobjectUpsert mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre
-                  style={{
-                    margin: 0,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  <code>
-                    {JSON.stringify(fetcher.data.metaobject, null, 2)}
-                  </code>
-                </pre>
-              </s-box>
+              <s-heading>
+                {stats.cancellations}
+              </s-heading>
             </s-stack>
-          </s-section>
-        )}
-      </s-section>
+          </s-box>
 
-      <s-section slot="aside" heading="App template specs">
-        <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
+          <s-box
+            padding="large"
+            border="base"
+            background="base"
+            borderRadius="large"
           >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Custom data: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data"
-            target="_blank"
-          >
-            Metafields &amp; metaobjects
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
+            <s-stack gap="tight">
+              <s-stack direction="inline" gap="small">
+                <s-text appearance="subdued">
+                  Address Edited
+                </s-text>
+                <s-badge tone="success">Active</s-badge>
+              </s-stack>
 
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
+              <s-heading>
+                {stats.addressEdits}
+              </s-heading>
+            </s-stack>
+          </s-box>
+        </s-grid>
+        </s-stack>
+
+        <s-box
+          padding="large"
+        >
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{
+                  top: 16,
+                  right: 8,
+                  left: 8,
+                  bottom: 24,
+                }}
+              >
+                <CartesianGrid
+                  vertical={false}
+                  horizontal={true}
+                  stroke="#f0f0f0"
+                  strokeDasharray=""
+                />
+
+                <XAxis
+                  dataKey="date"
+                  interval={xAxisInterval}
+                  interval="preserveStart"
+                  stroke="#eeeeef"
+                  tick={{ fill: "#616161", fontSize: 12 }}
+                  tickFormatter={formatChartDate}
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={22}
+                  minTickGap={24}
+                />
+
+                <YAxis 
+                  allowDecimals={false} 
+                  domain={[0, 'dataMax + 1']} 
+                  tickCount={4}
+                  width="auto"
+                  stroke="#eeeeef"
+                  tick={{ fill: "#616161", fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={16}
+                />
+
+                <Tooltip
+                  labelFormatter={formatTooltipDate}
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="addressEdits"
+                  name="Address edits"
+                  stroke="#13acf0"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="cancellations"
+                  name="Order cancellations"
+                  stroke="#89cdeb"
+                  strokeDasharray="3 4 5 2"
+                  strokeWidth={1}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </s-box>
       </s-section>
     </s-page>
   );
@@ -361,3 +266,21 @@ export default function Index() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
+
+function formatChartDate(value: string) {
+  return new Date(`${value}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatTooltipDate(value: string) {
+  return new Date(`${value}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}

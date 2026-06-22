@@ -1,5 +1,6 @@
 import {data} from "react-router";
 import {unauthenticated} from "../shopify.server";
+import prisma from "../db.server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,38 +27,58 @@ export async function action({request}) {
   const {admin} = await unauthenticated.admin(shop);
 
   const response = await admin.graphql(
-  `
-    mutation orderCancel(
-      $orderId: ID!,
-      $reason: OrderCancelReason!,
-      $restock: Boolean!
-    ) {
-      orderCancel(
-        orderId: $orderId,
-        reason: $reason,
-        restock: $restock
+    `
+      mutation orderCancel(
+        $orderId: ID!,
+        $reason: OrderCancelReason!,
+        $restock: Boolean!,
+        $staffNote: String
       ) {
-        job {
-          id
-        }
+        orderCancel(
+          orderId: $orderId,
+          reason: $reason,
+          restock: $restock,
+          staffNote: $staffNote
+        ) {
+          job {
+            id
+          }
 
-        userErrors {
-          field
-          message
+          userErrors {
+            field
+            message
+          }
         }
       }
-    }
-  `,
-  {
-    variables: {
-      orderId: body.orderId,
-      reason: "CUSTOMER",
-      restock: true,
+    `,
+    {
+      variables: {
+        orderId: body.orderId,
+        reason: "CUSTOMER",
+        restock: true,
+        staffNote: `Reason: ${body.cancelReason}.`,
+      },
     },
-  },
-);
+  );
 
   const result = await response.json();
+
+  const errors = result?.data?.orderCancel?.userErrors ?? [];
+
+  if (errors.length > 0) {
+    return data(
+      result,
+      {status: 400, headers: corsHeaders}
+    );
+  }
+
+  await prisma.orderFixEvent.create({
+    data: {
+      shop,
+      orderId: body.orderId,
+      type: "ORDER_CANCELLED",
+    },
+  });
 
   return data(result, {headers: corsHeaders});
 }

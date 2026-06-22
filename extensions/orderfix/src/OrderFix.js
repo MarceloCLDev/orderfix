@@ -1,4 +1,6 @@
 import {useEffect, useState} from 'preact/hooks';
+import {getAddressWarnings} from './utils/addressWarnings';
+import {formatTimeLeft} from './utils/timeLeft';
 
 export function OrderFix() {
   const [openSection, setOpenSection] = useState(null);
@@ -154,6 +156,201 @@ export function OrderFix() {
   );
 }
 
+export function OrderFixThankYou() {
+  const [loadingUrl, setLoadingUrl] = useState(false);
+  const [statusPageUrl, setStatusPageUrl] = useState(null);
+  const [error, setError] = useState('');
+  const [availability, setAvailability] = useState(null);
+  const [shippingAddress, setShippingAddress] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const [loadingAvailability, setLoadingAvailability] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    async function loadAvailability() {
+      try {
+        const APP_URL = process.env.APP_URL;
+
+        const orderConfirmation =
+          shopify.orderConfirmation?.value ||
+          shopify.orderConfirmation?.current?.value ||
+          shopify.orderConfirmation;
+
+        const orderIdentityId = orderConfirmation?.order?.id;
+        const orderId = orderIdentityId?.replace(
+          'gid://shopify/OrderIdentity/',
+          'gid://shopify/Order/'
+        );
+
+        const response = await fetch(`${APP_URL}/api/order/details`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            shop: shopify.shop.myshopifyDomain,
+            orderId,
+          }),
+        });
+
+        const data = await response.json();
+
+        setAvailability(data.availability);
+        setShippingAddress(data.shippingAddress);
+      } catch (error) {
+        console.error('OrderFix thank you availability error', error);
+      } finally {
+        setLoadingAvailability(false);
+      }
+    }
+
+    loadAvailability();
+  }, []);
+
+  async function prepareEditOrder() {
+    setLoadingUrl(true);
+    setError('');
+
+    try {
+      const APP_URL = process.env.APP_URL;
+
+      const orderConfirmation =
+        shopify.orderConfirmation?.value ||
+        shopify.orderConfirmation?.current?.value ||
+        shopify.orderConfirmation;
+
+      const response = await fetch(`${APP_URL}/api/order/status-url`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          shop: shopify.shop.myshopifyDomain,
+          orderIdentityId: orderConfirmation?.order?.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success || !data.statusPageUrl) {
+        setError(data.error || 'Unable to prepare order edit link.');
+        return;
+      }
+
+      setStatusPageUrl(data.statusPageUrl);
+    } catch (error) {
+      console.error('Prepare edit order error', error);
+      setError('Unable to prepare order edit link.');
+    } finally {
+      setLoadingUrl(false);
+    }
+  }
+
+  const expiresAt = availability?.expiresAt
+    ? new Date(availability.expiresAt).getTime()
+    : null;
+
+  const timeLeftMs = expiresAt ? expiresAt - now : 0;
+  const timeLeft = formatTimeLeft(timeLeftMs);
+  const expired = timeLeftMs <= 0;
+
+  const showEditor =
+    availability &&
+    availability.canModify &&
+    !expired;
+
+  const addressWarnings = getAddressWarnings(shippingAddress);
+
+  if (loadingAvailability) {
+    return (
+        <s-stack direction="block" gap="base">
+          <s-progress accessibilityLabel="Checking order edit availability..."></s-progress>
+        </s-stack>
+    );
+  }
+
+  if (availability && !showEditor) {
+    //return null;
+  }
+
+  return (
+    <s-section>
+      <s-box
+        border="base"
+        borderRadius="base"
+        padding="base"
+      >
+        <s-stack gap="base" padding="small none">
+          <s-stack direction="inline" justifyContent="space-between">
+            <s-text type="strong">Make changes to your order</s-text>
+            <s-text>Time left to edit: {timeLeft}</s-text>
+          </s-stack>
+
+          {addressWarnings.length > 0 && (
+            <s-banner tone="warning">
+              <s-stack gap="small">
+                <s-text type="strong">Please review your shipping address</s-text>
+
+                {addressWarnings.map((warning) => (
+                  <s-text key={warning}>
+                    • {warning}
+                  </s-text>
+                ))}
+              </s-stack>
+            </s-banner>
+          )}
+
+          {error && (
+            <s-banner tone="critical">
+              {error}
+            </s-banner>
+          )}
+
+          <ThankYouActionRow
+            icon="delivery"
+            title="Edit shipping address"
+            onClick={prepareEditOrder}
+          />
+
+          <s-divider />
+
+          <ThankYouActionRow
+            icon="x-circle"
+            title="Request order cancellation"
+            onClick={prepareEditOrder}
+          />
+
+          <s-modal id="edit-order-modal" accessibilityLabel="Proceed to edit your order">
+            <s-stack direction="block" gap="large" paddingBlock="none large">
+              <s-paragraph textAlign="center">
+                <s-heading>You can now proceed to edit your order.</s-heading>
+              </s-paragraph>
+              <s-paragraph textAlign="center">
+                <s-text color="subdued">This can take a few seconds.</s-text>
+              </s-paragraph>
+            </s-stack>
+
+            <s-paragraph>
+              <s-button
+                variant="primary"
+                inlineSize="fill"
+                href={statusPageUrl || undefined}
+                disabled={!statusPageUrl}
+              >
+                {statusPageUrl ? 'Edit your order' : 'Preparing...'}
+              </s-button>
+            </s-paragraph>
+          </s-modal>
+
+        </s-stack>
+      </s-box>
+    </s-section>
+  );
+}
+
 function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
   const [cancelReason, setCancelReason] = useState('');
 
@@ -177,10 +374,10 @@ function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
         onChange={(event) => setCancelReason(event.target.value)}
       >
         <s-option value="">Select a reason</s-option>
-        <s-option value="mistake">Ordered by mistake</s-option>
-        <s-option value="address">Wrong shipping address</s-option>
-        <s-option value="changed_mind">Changed my mind</s-option>
-        <s-option value="other">Other</s-option>
+        <s-option value="Ordered by mistake">Ordered by mistake</s-option>
+        <s-option value="Wrong shipping address">Wrong shipping address</s-option>
+        <s-option value="Changed my mind">Changed my mind</s-option>
+        <s-option value="Other">Other</s-option>
       </s-select>
 
       <s-button
@@ -198,6 +395,7 @@ function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
             body: JSON.stringify({
               shop: shopify.shop.myshopifyDomain,
               orderId: shopify.order.value.id,
+              cancelReason,
             }),
           });
 
@@ -398,48 +596,6 @@ function ShippingForm({shippingAddress, setShippingAddress, onSuccess}) {
   );
 }
 
-function encodeOrderId(orderId) {
-  return btoa(orderId)
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replaceAll('=', '');
-}
-
-function getAddressWarnings(address) {
-  const warnings = [];
-
-  const street = address?.address1?.trim() || '';
-  const zip = address?.zip?.trim() || '';
-  const country = address?.countryCodeV2;
-
-  if (country === 'US') {
-    const streetRegex =
-      /^(?:\d+\s+[a-zA-Z0-9\s.,#-]+|(?:p\.?\s*o\.?\s*|post\s+office\s+)box\s+\d+[a-zA-Z0-9\s.,#-]*)$/i;
-
-    const zipRegex = /^\d{5}(-\d{4})?$/;
-
-    if (!streetRegex.test(street)) {
-      warnings.push('Your street address looks like it may be missing a number.');
-    }
-
-    if (!zipRegex.test(zip)) {
-      warnings.push('Your ZIP code appears to be invalid.');
-    }
-  }
-
-  return warnings;
-}
-
-function formatTimeLeft(ms) {
-  if (ms <= 0) return "00:00";
-
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
 function ActionRow({icon, title, open, onClick}) {
   return (
     <s-clickable onClick={onClick}>
@@ -450,6 +606,26 @@ function ActionRow({icon, title, open, onClick}) {
         <s-text>Edit</s-text>
         */}
         <s-icon type={open ? 'chevron-up' : 'chevron-down'} />
+      </s-grid>
+    </s-clickable>
+  );
+}
+
+function ThankYouActionRow({icon, title, onClick}) {
+  return (
+    <s-clickable
+      command="show"
+      commandFor="edit-order-modal"
+      onClick={onClick}
+    >
+      <s-grid
+        gridTemplateColumns="auto 1fr auto"
+        gap="base"
+        alignItems="center"
+      >
+        <s-icon type={icon} />
+        <s-text type="strong">{title}</s-text>
+        <s-text>Edit</s-text>
       </s-grid>
     </s-clickable>
   );
