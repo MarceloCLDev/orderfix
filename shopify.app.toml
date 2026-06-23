@@ -1,6 +1,6 @@
 client_id = "1322aebfaaf1541b7b89eb57c184f5a2"
-name = "orderfix"
-application_url = "https://example.com"
+name = "Order Fix"
+application_url = "https://orderfix-production-22d8.up.railway.app"
 embedded = true
 
 [access_scopes]
@@ -11,15 +11,14 @@ api_version = "2026-07"
 
 [[webhooks.subscriptions]]
 topics = ["app/uninstalled"]
-uri = "/webhooks/app/uninstalled"
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/uninstalled"
 
 [[webhooks.subscriptions]]
 topics = ["app/scopes_update"]
-uri = "/webhooks/app/scopes_update"
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/scopes_update"
 
 [auth]
-redirect_urls = ["https://example.com/api/auth"]
+redirect_urls = ["https://orderfix-production-22d8.up.railway.app/api/auth"]
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
