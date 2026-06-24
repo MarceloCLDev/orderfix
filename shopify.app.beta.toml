@@ -1,0 +1,24 @@
+client_id = "fa5f5beab11c21b143dce97dfe45a893"
+name = "Order Fix"
+application_url = "https://orderfix-production-22d8.up.railway.app"
+embedded = true
+
+[access_scopes]
+scopes = "read_orders,write_orders,read_customers"
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/uninstalled"
+
+[[webhooks.subscriptions]]
+topics = ["app/scopes_update"]
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/scopes_update"
+
+[auth]
+redirect_urls = ["https://orderfix-production-22d8.up.railway.app/api/auth"]
+
+[build]
+automatically_update_urls_on_dev = true
