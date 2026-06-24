@@ -1,5 +1,5 @@
 client_id = "fa5f5beab11c21b143dce97dfe45a893"
-name = "Order Fix"
+name = "Order Fix (Beta)"
 application_url = "https://orderfix-production-22d8.up.railway.app"
 embedded = true
 

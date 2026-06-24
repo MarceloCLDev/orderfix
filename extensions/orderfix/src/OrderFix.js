@@ -28,7 +28,7 @@ export function OrderFix() {
   useEffect(() => {
     async function loadAvailability() {
       try {
-        const APP_URL = process.env.APP_URL;
+        const APP_URL = import.meta.env.VITE_APP_URL;
 
         const response = await fetch(`${APP_URL}/api/order/details`, {
           method: 'POST',
@@ -176,7 +176,7 @@ export function OrderFixThankYou() {
   useEffect(() => {
     async function loadAvailability() {
       try {
-        const APP_URL = process.env.APP_URL;
+        const APP_URL = import.meta.env.VITE_APP_URL;
 
         const orderConfirmation =
           shopify.orderConfirmation?.value ||
@@ -217,7 +217,7 @@ export function OrderFixThankYou() {
     setError('');
 
     try {
-      const APP_URL = process.env.APP_URL;
+      const APP_URL = import.meta.env.VITE_APP_URL;
 
       const orderConfirmation =
         shopify.orderConfirmation?.value ||
@@ -387,7 +387,7 @@ function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
         onClick={async () => {
           setCancelling(true);
 
-          const APP_URL = process.env.APP_URL;
+          const APP_URL = import.meta.env.VITE_APP_URL;
 
           const response = await fetch(`${APP_URL}/api/order/cancel`, {
             method: 'POST',
@@ -484,7 +484,7 @@ function ShippingForm({shippingAddress, setShippingAddress, onSuccess}) {
 
     setSaving(true);
 
-    const APP_URL = process.env.APP_URL;
+    const APP_URL = import.meta.env.VITE_APP_URL;
 
     const response = await fetch(`${APP_URL}/api/order/address`, {
       method: 'POST',
