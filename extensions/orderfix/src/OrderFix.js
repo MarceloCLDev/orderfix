@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'preact/hooks';
 import {getAddressWarnings} from './utils/addressWarnings';
 import {formatTimeLeft} from './utils/timeLeft';
+import {APP_URL} from './config';
 
 export function OrderFix() {
   const [openSection, setOpenSection] = useState(null);
@@ -28,8 +29,6 @@ export function OrderFix() {
   useEffect(() => {
     async function loadAvailability() {
       try {
-        const APP_URL = process.env.SHOPIFY_APP_URL;
-
         const response = await fetch(`${APP_URL}/api/order/details`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -176,8 +175,6 @@ export function OrderFixThankYou() {
   useEffect(() => {
     async function loadAvailability() {
       try {
-        const APP_URL = process.env.SHOPIFY_APP_URL;
-
         const orderConfirmation =
           shopify.orderConfirmation?.value ||
           shopify.orderConfirmation?.current?.value ||
@@ -217,8 +214,6 @@ export function OrderFixThankYou() {
     setError('');
 
     try {
-      const APP_URL = process.env.SHOPIFY_APP_URL;
-
       const orderConfirmation =
         shopify.orderConfirmation?.value ||
         shopify.orderConfirmation?.current?.value ||
@@ -387,8 +382,6 @@ function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
         onClick={async () => {
           setCancelling(true);
 
-          const APP_URL = process.env.SHOPIFY_APP_URL;
-
           const response = await fetch(`${APP_URL}/api/order/cancel`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -483,8 +476,6 @@ function ShippingForm({shippingAddress, setShippingAddress, onSuccess}) {
     }
 
     setSaving(true);
-
-    const APP_URL = process.env.SHOPIFY_APP_URL;
 
     const response = await fetch(`${APP_URL}/api/order/address`, {
       method: 'POST',
