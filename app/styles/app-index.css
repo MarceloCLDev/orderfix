@@ -1,0 +1,33 @@
+.analytics-shell {
+  background: var(--p-color-bg-surface, #fff);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.date-range-select {
+  width: 180px;
+}
+
+.analytics-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .analytics-shell {
+    margin-inline: -16px;
+    padding: 16px;
+    border-radius: 0;
+  }
+
+  .date-range-select {
+    width: 160px;
+  }
+}
+
+@media (max-width: 420px) {
+  .analytics-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -122,7 +122,8 @@ export default function Index() {
 
           <div style={{ width: "180px" }}>
             <s-select
-              label=""
+              label="Date range"
+              labelAccessibilityVisibility="exclusive"
               value={String(days)}
               onChange={(event) => {
                 navigate(`?range=${event.target.value}`);
@@ -139,8 +140,8 @@ export default function Index() {
 
         <s-stack padding="large-100" background="subdued" borderRadius="large">
         <s-grid
-          gridTemplateColumns="1fr 1fr"
-          gap="large"
+          gridTemplateColumns="repeat(auto-fit, minmax(240px, 1fr))"
+          gap="small"
         >
           <s-box
             padding="large"
@@ -187,7 +188,7 @@ export default function Index() {
         <s-box
           padding="large"
         >
-          <div style={{ height: 220 }}>
+          <div style={{width: '100%', height: '220px', minWidth: 0}}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}
