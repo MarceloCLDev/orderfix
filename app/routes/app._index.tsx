@@ -1,4 +1,4 @@
-import {useLoaderData, useNavigate} from "react-router";
+import {useLoaderData, useNavigate, useNavigation} from "react-router";
 import type {
   HeadersFunction,
   LoaderFunctionArgs,
@@ -101,6 +101,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function Index() {
   const {stats, chartData, days} = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading";
 
   const xAxisInterval =
     days <= 7
@@ -124,7 +126,7 @@ export default function Index() {
             <s-select
               label="Date range"
               labelAccessibilityVisibility="exclusive"
-              value={String(days)}
+              value={String(days || 7)}
               onChange={(event) => {
                 navigate(`?range=${event.target.value}`);
               }}
@@ -188,6 +190,14 @@ export default function Index() {
         <s-box
           padding="large"
         >
+          {isLoading ? (
+            <s-box padding="large">
+              <s-stack gap="base" alignItems="center">
+                <s-spinner />
+                <s-text appearance="subdued">Loading analytics...</s-text>
+              </s-stack>
+            </s-box>
+          ) : (
           <div style={{width: '100%', height: '220px', minWidth: 0}}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
@@ -258,6 +268,7 @@ export default function Index() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+          )}
         </s-box>
       </s-section>
     </s-page>
