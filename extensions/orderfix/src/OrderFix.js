@@ -3,6 +3,60 @@ import {getAddressWarnings} from './utils/addressWarnings';
 import {formatTimeLeft} from './utils/timeLeft';
 import {APP_URL} from './config';
 
+const US_STATE_ZIP_RANGES = {
+  AK: [[99501, 99950]],
+  AL: [[35004, 36925]],
+  AR: [[71601, 72959], [75502, 75502]],
+  AZ: [[85001, 86556]],
+  CA: [[90001, 96162]],
+  CO: [[80001, 81658]],
+  CT: [[6001, 6389], [6401, 6928]],
+  DC: [[20001, 20039], [20042, 20599], [20799, 20799]],
+  DE: [[19701, 19980]],
+  FL: [[32004, 34997]],
+  GA: [[30001, 31999], [39901, 39901]],
+  HI: [[96701, 96898]],
+  IA: [[50001, 52809], [68119, 68120]],
+  ID: [[83201, 83876]],
+  IL: [[60001, 62999]],
+  IN: [[46001, 47997]],
+  KS: [[66002, 67954]],
+  KY: [[40003, 42788]],
+  LA: [[70001, 71232], [71234, 71497]],
+  MA: [[1001, 2791], [5501, 5544]],
+  MD: [[20331, 20331], [20335, 20797], [20812, 21930]],
+  ME: [[3901, 4992]],
+  MI: [[48001, 49971]],
+  MN: [[55001, 56763]],
+  MO: [[63001, 65899]],
+  MS: [[38601, 39776], [71233, 71233]],
+  MT: [[59001, 59937]],
+  NC: [[27006, 28909]],
+  ND: [[58001, 58856]],
+  NE: [[68001, 68118], [68122, 69367]],
+  NH: [[3031, 3897]],
+  NJ: [[7001, 8989]],
+  NM: [[87001, 88441]],
+  NV: [[88901, 89883]],
+  NY: [[6390, 6390], [10001, 14975]],
+  OH: [[43001, 45999]],
+  OK: [[73001, 73199], [73401, 74966]],
+  OR: [[97001, 97920]],
+  PA: [[15001, 19640]],
+  RI: [[2801, 2940]],
+  SC: [[29001, 29948]],
+  SD: [[57001, 57799]],
+  TN: [[37010, 38589]],
+  TX: [[73301, 73301], [75001, 75501], [75503, 79999], [88510, 88589]],
+  UT: [[84001, 84784]],
+  VA: [[20040, 20167], [20042, 20042], [22001, 24658]],
+  VT: [[5001, 5495], [5601, 5907]],
+  WA: [[98001, 99403]],
+  WI: [[53001, 54990]],
+  WV: [[24701, 26886]],
+  WY: [[82001, 83128]],
+};
+
 export function OrderFix() {
   const [openSection, setOpenSection] = useState(null);
   const [availability, setAvailability] = useState(null);
@@ -346,6 +400,20 @@ export function OrderFixThankYou() {
   );
 }
 
+export function isZipValidForState(zip, stateCode) {
+  const cleanZip = String(zip || '').trim().slice(0, 5);
+
+  if (!/^\d{5}$/.test(cleanZip)) return false;
+
+  const ranges = US_STATE_ZIP_RANGES[stateCode];
+
+  if (!ranges) return true;
+
+  const zipNumber = Number(cleanZip);
+
+  return ranges.some(([min, max]) => zipNumber >= min && zipNumber <= max);
+}
+
 function CancelForm({cancelled, cancelling, setCancelled, setCancelling}) {
   const [cancelReason, setCancelReason] = useState('');
 
@@ -464,6 +532,17 @@ function ShippingForm({shippingAddress, setShippingAddress, onSuccess}) {
     if (
       shippingAddress?.countryCodeV2 === 'US' &&
       form.zip.trim() &&
+      !isZipValidForState(
+        form.zip,
+        shippingAddress?.provinceCode || shippingAddress?.province
+      )
+    ) {
+      validationErrors.zip = 'Enter a ZIP code that matches the selected state.';
+    }
+
+    if (
+      shippingAddress?.countryCodeV2 === 'US' &&
+      form.zip.trim() &&
       !/^\d{5}(-\d{4})?$/.test(form.zip.trim())
     ) {
       validationErrors.zip = 'Enter a valid ZIP code';
@@ -558,7 +637,7 @@ function ShippingForm({shippingAddress, setShippingAddress, onSuccess}) {
         onInput={(event) => updateField('city', event.target.value)}
       />
 
-      <s-grid gridTemplateColumns="1fr 1fr" gap="base">
+      <s-grid gridTemplateColumns="1fr 1fr" gap="base" alignItems="start">
         <s-text-field
           label="Postal code"
           value={form.zip}

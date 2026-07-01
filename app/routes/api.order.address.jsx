@@ -91,6 +91,29 @@ export async function action({request}) {
       );
     }
 
+    await admin.graphql(
+      `
+        mutation tagsAdd($id: ID!, $tags: [String!]!) {
+          tagsAdd(id: $id, tags: $tags) {
+            node {
+              id
+            }
+
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `,
+      {
+        variables: {
+          id: body.orderId,
+          tags: ["orderfix:address-edited"],
+        },
+      },
+    );
+    
     await prisma.orderFixEvent.create({
       data: {
         shop,
