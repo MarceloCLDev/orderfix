@@ -1,5 +1,5 @@
 client_id = "fa5f5beab11c21b143dce97dfe45a893"
-application_url = "https://robertson-across-remix-consultant.trycloudflare.com"
+application_url = "https://orderfix-production-22d8.up.railway.app"
 embedded = true
 name = "Order Fix (Beta)"
 
@@ -10,15 +10,15 @@ scopes = "read_orders,write_orders,read_customers"
 api_version = "2026-07"
 
 [[webhooks.subscriptions]]
-uri = "https://robertson-across-remix-consultant.trycloudflare.com/webhooks/app/uninstalled"
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/uninstalled"
 topics = ["app/uninstalled"]
 
 [[webhooks.subscriptions]]
-uri = "https://robertson-across-remix-consultant.trycloudflare.com/webhooks/app/scopes_update"
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/scopes_update"
 topics = ["app/scopes_update"]
 
 [auth]
-redirect_urls = ["https://robertson-across-remix-consultant.trycloudflare.com/api/auth"]
+redirect_urls = ["https://orderfix-production-22d8.up.railway.app/api/auth"]
 
 [build]
 automatically_update_urls_on_dev = true
