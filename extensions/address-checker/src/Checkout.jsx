@@ -1,4 +1,5 @@
 import '@shopify/ui-extensions/preact';
+import {useEffect, useRef} from 'preact/hooks';
 import {render} from 'preact';
 import {APP_URL} from '../../config';
 
@@ -20,15 +21,22 @@ function Extension() {
 
   const address = shopify.shippingAddress.current;
   const hasWarning = hasAddressWarning(address);
+  const wasInvalid = useRef(false);
+
+  useEffect(() => {
+    if (hasWarning && !wasInvalid.current) {
+      trackBannerHit({
+        shop: shopify.shop.myshopifyDomain,
+        reason: 'address_warning',
+      });
+    }
+
+    wasInvalid.current = hasWarning;
+  }, [hasWarning, address, variant]);
 
   if (!hasWarning) {
     return null;
   }
-
-  trackBannerHit({
-    shop: shopify.shop.myshopifyDomain,
-    reason: 'address_warning',
-  });
 
   return (
     <s-banner
