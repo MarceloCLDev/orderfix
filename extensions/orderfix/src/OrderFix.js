@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'preact/hooks';
 import {getAddressWarnings} from './utils/addressWarnings';
 import {formatTimeLeft} from './utils/timeLeft';
-import {APP_URL} from './config';
+import {APP_URL} from '../../config';
 
 const US_STATE_ZIP_RANGES = {
   AK: [[99501, 99950]],

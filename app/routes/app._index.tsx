@@ -58,6 +58,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       date: key,
       addressEdits: 0,
       cancellations: 0,
+      addressWarnings: 0,
     });
   }
 
@@ -74,6 +75,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (event.type === "ORDER_CANCELLED") {
       current.cancellations += 1;
     }
+
+    if (event.type === "ADDRESS_WARNING_SHOWN") {
+      current.addressWarnings += 1;
+    }
   }
 
   const chartData = Array.from(chartMap.values());
@@ -88,10 +93,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     0
   );
 
+  const warningsShown = chartData.reduce(
+    (total, day) => total + day.addressWarnings,
+    0
+  );
+
   return {
     stats: {
       addressEdits,
       cancellations,
+      warningsShown,
     },
     chartData,
     days,
@@ -184,6 +195,28 @@ export default function Index() {
               </s-heading>
             </s-stack>
           </s-box>
+
+          <s-box
+            padding="large"
+            border="base"
+            borderRadius="large"
+            background="base"
+          >
+            <s-stack gap="tight">
+              <s-stack direction="inline" gap="small">
+                <s-text appearance="subdued">
+                  Address Warnings
+                </s-text>
+
+                <s-badge tone="success">Active</s-badge>
+              </s-stack>
+
+              <s-heading>
+                {stats.warningsShown}
+              </s-heading>
+            </s-stack>
+          </s-box>
+
         </s-grid>
         </s-stack>
 
@@ -219,7 +252,6 @@ export default function Index() {
                 <XAxis
                   dataKey="date"
                   interval={xAxisInterval}
-                  interval="preserveStart"
                   stroke="#eeeeef"
                   tick={{ fill: "#616161", fontSize: 12 }}
                   tickFormatter={formatChartDate}
@@ -265,6 +297,17 @@ export default function Index() {
                   dot={false}
                   activeDot={{ r: 6 }}
                 />
+
+                <Line
+                  type="monotone"
+                  dataKey="addressWarnings"
+                  name="Address warnings"
+                  stroke="#6A42E9"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
+
               </LineChart>
             </ResponsiveContainer>
           </div>
