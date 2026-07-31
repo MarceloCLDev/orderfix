@@ -1,7 +1,7 @@
 api_version = "2026-04"
 
 [[extensions]]
-name = "address-checker"
+name = "Order Fix Checkout Functions"
 handle = "address-checker"
 type = "ui_extension"
 uid = "fc150567-8272-6d2e-8629-fcb3c38cf42c6436d7ee"
@@ -9,6 +9,10 @@ uid = "fc150567-8272-6d2e-8629-fcb3c38cf42c6436d7ee"
 [[extensions.targeting]]
 module = "./src/Checkout.jsx"
 target = "purchase.checkout.block.render"
+
+[[extensions.targeting]]
+module = "./src/CartLine.jsx"
+target = "purchase.checkout.cart-line-item.render-after"
 
 [extensions.capabilities]
 api_access = true
