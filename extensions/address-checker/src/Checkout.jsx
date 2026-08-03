@@ -22,7 +22,7 @@ function Extension() {
     }
 
     wasInvalid.current = hasWarning;
-  }, [hasWarning, address, variant]);
+  }, [hasWarning, address]);
 
   if (!hasWarning) {
     return null;
