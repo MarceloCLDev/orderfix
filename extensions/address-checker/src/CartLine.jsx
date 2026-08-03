@@ -22,6 +22,11 @@ function CartLineSaleText() {
     const normalizedCode = code.trim().toUpperCase();
     const excludedNames = excludedCodeRules[normalizedCode];
 
+    // Any code starting with MP-
+    if (normalizedCode.startsWith('MP-')) {
+      return true;
+    }
+
     // This code has no exclusion rule.
     if (!excludedNames) {
       return false;
