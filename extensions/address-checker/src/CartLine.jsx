@@ -9,21 +9,36 @@ function CartLineSaleText() {
   const line = shopify.target.value;
   const attributes = shopify.attributes.value || [];
   const discountCodes = shopify.discountCodes.value || [];
+  const title = line?.merchandise?.title || '';
 
-  console.log(discountCodes)
+  const excludedCodeRules = {
+    BOGO: ['Travel Spray'],
+    BLOWOUT: ['Travel Spray'],
+    '10XMP': [],
+    SAVEBIG: [],
+  };
 
-  const excludedCodes = new Set([
-    'BOGO',
-    'BLOWOUT',
-    '10XMP',
-    'SAVEBIG',
-  ]);
+  const shouldHideBlurb = discountCodes.some(({code}) => {
+    const normalizedCode = code.trim().toUpperCase();
+    const excludedNames = excludedCodeRules[normalizedCode];
 
-  const hasExcludedCode = discountCodes.some(({code}) =>
-    excludedCodes.has(code.trim().toUpperCase())
-  );
+    // This code has no exclusion rule.
+    if (!excludedNames) {
+      return false;
+    }
 
-  if (hasExcludedCode) {
+    // Empty list means exclude every cart item.
+    if (excludedNames.length === 0) {
+      return true;
+    }
+
+    // Otherwise, exclude only matching product titles.
+    return excludedNames.some((name) =>
+      title.toLowerCase().includes(name.toLowerCase())
+    );
+  });
+
+  if (shouldHideBlurb) {
     return null;
   }
 

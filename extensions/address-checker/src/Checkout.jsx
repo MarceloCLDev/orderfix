@@ -9,16 +9,6 @@ export default async () => {
 
 function Extension() {
 
-  const variant = shopify.attributes.current.find(
-    (attribute) =>
-      attribute.key === 'validation_banner_test_variant'
-  )?.value;
-
-  if (variant !== 'B') {
-    console.log('No Variant B, No address validation');
-    return null;
-  }
-
   const address = shopify.shippingAddress.current;
   const hasWarning = hasAddressWarning(address);
   const wasInvalid = useRef(false);
