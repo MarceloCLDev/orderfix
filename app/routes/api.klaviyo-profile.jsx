@@ -156,6 +156,7 @@ export async function action({request}) {
       !isGloballySuppressed;
 
     const email = profile?.attributes?.email ?? null;
+    const profileId = profile?.id ?? null;
 
     console.log("Klaviyo profile verification", {
       profileFound: true,
@@ -170,6 +171,8 @@ export async function action({request}) {
         ok: true,
         validProfile: true,
         isSubscribed,
+        profileId,
+        email,
       },
       {
         headers: corsHeaders,
