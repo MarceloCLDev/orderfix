@@ -5,10 +5,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
 
   const response = await admin.graphql(`
-    query {
-      currentAppInstallation {
-        accessScopes {
-          handle
+    mutation {
+      cartTransformCreate(
+        functionHandle: "promo-price-transform"
+      ) {
+        cartTransform {
+          id
+          functionId
+        }
+        userErrors {
+          field
+          message
         }
       }
     }
