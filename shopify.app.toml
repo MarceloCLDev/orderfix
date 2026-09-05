@@ -4,7 +4,7 @@ embedded = true
 name = "Order Fix (Beta)"
 
 [access_scopes]
-scopes = "read_orders,write_orders,read_customers"
+scopes = "read_orders,write_orders,read_customers,write_cart_transforms"
 
 [webhooks]
 api_version = "2026-07"

@@ -1,0 +1,11 @@
+query CartTransformRunInput {
+  cart {
+    lines {
+      id
+
+      customPrice: attribute(key: "_custom_price") {
+        value
+      }
+    }
+  }
+}
