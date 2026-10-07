@@ -9,6 +9,28 @@ export function cartTransformRun(
   const operations: CartTransformRunResult["operations"] = [];
 
   for (const line of input.cart.lines) {
+    const isMysteryGift = line.mysteryGift?.value === "true";
+
+    // Mystery gift takes priority over custom price
+    if (isMysteryGift) {
+      operations.push({
+        lineUpdate: {
+          cartLineId: line.id,
+          title: "Mystery Gift",
+          price: {
+            adjustment: {
+              fixedPricePerUnit: {
+                amount: "0.00",
+              },
+            },
+          },
+        },
+      });
+
+      continue;
+    }
+
+    // Existing custom-price logic
     const customPrice = line.customPrice?.value;
     const price = Number(customPrice);
 

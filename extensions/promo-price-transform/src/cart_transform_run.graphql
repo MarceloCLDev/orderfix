@@ -6,6 +6,14 @@ query CartTransformRunInput {
       customPrice: attribute(key: "_custom_price") {
         value
       }
+
+      mysteryGift: attribute(key: "_mystery_gift") {
+        value
+      }
+
+      giftPromo: attribute(key: "_gift_promo") {
+        value
+      }
     }
   }
 }
