@@ -17,6 +17,9 @@ export function cartTransformRun(
         lineUpdate: {
           cartLineId: line.id,
           title: "Mystery Gift",
+          image: {
+            url: "https://cdn.shopify.com/s/files/1/0755/3607/2955/files/mystery-gift.jpg",
+          },
           price: {
             adjustment: {
               fixedPricePerUnit: {
