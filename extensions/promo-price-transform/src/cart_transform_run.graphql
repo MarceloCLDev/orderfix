@@ -1,7 +1,14 @@
 query CartTransformRunInput {
+  shop {
+    metafield(namespace: "custom", key: "autoapply") {
+      value
+    }
+  }
+
   cart {
     lines {
       id
+      quantity
 
       customPrice: attribute(key: "_custom_price") {
         value
@@ -13,6 +20,13 @@ query CartTransformRunInput {
 
       giftPromo: attribute(key: "_gift_promo") {
         value
+      }
+
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
       }
     }
   }
