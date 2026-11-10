@@ -7,22 +7,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     console.log(`Received ${topic} webhook for ${shop}`);
 
-    console.log("ORDERS_PAID payload diagnostics:", {
-        orderId: payload.id,
-        payloadKeys: Object.keys(payload),
-        noteAttributesType: Array.isArray(payload.note_attributes)
-            ? "array"
-            : typeof payload.note_attributes,
-        noteAttributeNames: Array.isArray(payload.note_attributes)
-            ? payload.note_attributes.map(attr => attr.name)
-            : [],
-    });
-
     const attributes = Object.fromEntries(
-        (Array.isArray(payload.note_attributes)
-            ? payload.note_attributes
-            : []
-        ).map((attr) => [attr.name, attr.value])
+        (payload.note_attributes ?? []).map((attr) => [
+            attr.name,
+            attr.value,
+        ])
     );
 
     const cashbackPromo = String(attributes.cashback_promo ?? "").trim();
@@ -30,21 +19,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Ignore orders without cashback promo attributes
     if (!cashbackPromo || !kx) {
-
-        console.warn("Cashback purchase skipped", {
-            orderId: payload.id,
-            missingPromo: !cashbackPromo,
-            missingKx: !kx,
-        });
-
         return new Response();
     }
-
-    console.log("Attempting cashback database upsert:", {
-        orderId: payload.id,
-        hasCashbackPromo: Boolean(cashbackPromo),
-        hasKx: Boolean(kx),
-    });
 
     await db.cashbackPromoPurchase.upsert({
         where: {
@@ -61,8 +37,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
         update: {},
     });
-
-    console.log("Cashback database upsert completed");
 
     console.log("Cashback promo purchase recorded", {
         shop,
