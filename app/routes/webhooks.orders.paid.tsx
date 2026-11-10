@@ -8,10 +8,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log(`Received ${topic} webhook for ${shop}`);
 
     const attributes = Object.fromEntries(
-        (payload.note_attributes ?? []).map((attr) => [
-            attr.name,
-            attr.value,
-        ])
+        (Array.isArray(payload.note_attributes)
+        ? payload.note_attributes
+        : []
+        ).map((attr) => [attr.name, attr.value])
     );
 
     const cashbackPromo = String(attributes.cashback_promo ?? "").trim();
@@ -23,19 +23,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     await db.cashbackPromoPurchase.upsert({
-        where: {
-            shop_orderId: {
-                shop,
-                orderId: String(payload.id),
-            },
+    where: {
+        shop_orderId: {
+        shop,
+        orderId: String(payload.id),
         },
-        create: {
-            shop,
-            orderId: String(payload.id),
-            cashbackPromo,
-            kx,
-        },
-        update: {},
+    },
+    create: {
+        shop,
+        orderId: String(payload.id),
+        cashbackPromo,
+        kx,
+        status: "PAID",
+    },
+    update: {
+        status: "PAID",
+    },
     });
 
     console.log("Cashback promo purchase recorded", {

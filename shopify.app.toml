@@ -21,6 +21,14 @@ topics = ["app/scopes_update"]
 uri = "https://orderfix-production-22d8.up.railway.app/webhooks/orders/paid"
 topics = ["orders/paid"]
 
+[[webhooks.subscriptions]]
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/orders/create"
+topics = ["orders/create"]
+
+[[webhooks.subscriptions]]
+uri = "https://orderfix-production-22d8.up.railway.app/webhooks/orders/cancelled"
+topics = ["orders/cancelled"]
+
 [auth]
 redirect_urls = ["https://orderfix-production-22d8.up.railway.app/api/auth"]
 

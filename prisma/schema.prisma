@@ -67,6 +67,7 @@ model CashbackPromoPurchase {
   orderId       String
   kx            String
   cashbackPromo String
+  status        String   @default("UNPAID")
   createdAt     DateTime @default(now())
 
   @@unique([shop, orderId])
