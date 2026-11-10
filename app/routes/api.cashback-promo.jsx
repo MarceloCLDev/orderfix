@@ -28,9 +28,7 @@ export async function loader({ request }) {
     const purchase = await prisma.cashbackPromoPurchase.findFirst({
       where: {
         kx,
-        status: {
-          in: ["UNPAID", "PAID"],
-        },
+        status: "PURCHASED",
       },
       select: {
         cashbackPromo: true,

@@ -18,10 +18,6 @@ uri = "https://orderfix-production-22d8.up.railway.app/webhooks/app/scopes_updat
 topics = ["app/scopes_update"]
 
 [[webhooks.subscriptions]]
-uri = "https://orderfix-production-22d8.up.railway.app/webhooks/orders/paid"
-topics = ["orders/paid"]
-
-[[webhooks.subscriptions]]
 uri = "https://orderfix-production-22d8.up.railway.app/webhooks/orders/create"
 topics = ["orders/create"]
 
